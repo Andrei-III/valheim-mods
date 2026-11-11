@@ -1,0 +1,80 @@
+# valheim-mods
+
+BepInEx mods for Valheim.
+
+| Mod | What it does |
+|---|---|
+| [HarpoonReel](#harpoonreel) | Hold a key to reel a harpooned creature all the way in to you. |
+
+---
+
+## HarpoonReel
+
+In vanilla Valheim, the harpoon keeps a creature from getting farther away than it was when you hit it, but never pulls it any closer. HarpoonReel lets you reel it in: hold **Left Alt** and the line keeps shortening until the creature is next to you. It's handy for hunting hares, boars, deer and anything else that runs away.
+
+The mod doesn't add its own pull. It shortens the vanilla harpoon line, so the game's normal behavior still applies:
+- Reeling costs stamina. You let go of the creature when your stamina runs out.
+- The line can still snap if the creature pulls away hard enough.
+- Bosses can't be harpooned.
+- Attacking or blocking releases the creature.
+
+### Requirements
+
+- [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
+- [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/)
+
+Tested with Valheim 1.0.21 and Jötunn 2.30.2.
+
+### Installation
+
+Put `HarpoonReel.dll` in `BepInEx/plugins/HarpoonReel/`.
+
+**Multiplayer:** every player **and** the dedicated server need the mod. The pull is calculated on whichever machine controls the creature, which can be any player or the server. Jötunn checks versions when you connect and refuses to join if someone's version doesn't match.
+
+### Usage
+
+1. Hit a creature with a harpoon.
+2. Hold **Left Alt** to reel it in. Let go to stop. The line then keeps its current length.
+
+Reeling is ignored while chat, the console, a menu, the map or the inventory is open.
+
+### Configuration
+
+The settings are in `BepInEx/config/andrei.valheim.harpoonreel.cfg`. The file is created the first time the mod loads.
+
+| Setting | Default | Synced from server | Description |
+|---|---|---|---|
+| `ReelKey` | `LeftAlt` | No | Key to hold for reeling. |
+| `AutoReel` | `false` | Yes | Reel automatically, without holding the key. |
+| `ReelSpeed` | `6` (0.5 to 30) | Yes | Maximum speed at which the line shortens, in meters per second. |
+| `MinDistance` | `1.5` (0.5 to 10) | Yes | How close the creature gets before reeling stops, in meters. |
+| `StaminaMultiplier` | `1` (0 to 5) | Yes | Multiplies the vanilla harpoon stamina drain while you're reeling. `0` makes reeling free. |
+| `DebugLogging` | `false` | Yes | Logs each harpooned creature's mass and harpoon values to `BepInEx/LogOutput.log`. |
+
+The server's config overrides the synced settings on every client.
+
+### Compatibility
+
+- Works alongside FishingEnhanced (harpooning, shooting or spearing fish). The two mods patch different code.
+- Patches `SE_Harpooned.SetAttacker` and `SE_Harpooned.UpdateStatusEffect`. Other mods that heavily change harpoon behavior may conflict.
+
+### Building from source
+
+You need the .NET SDK (6 or newer) and a Valheim install with BepInEx and Jötunn.
+
+```sh
+cd HarpoonReel
+dotnet build -c Release
+```
+
+The build references the game DLLs from the Steam install at `~/.local/share/Steam/steamapps/common/Valheim`. When it finishes, it copies `HarpoonReel.dll` into that install's `BepInEx/plugins/HarpoonReel/`. If Valheim is installed somewhere else:
+
+```sh
+dotnet build -c Release -p:ValheimDir=/path/to/Valheim
+```
+
+### How it works
+
+Vanilla `SE_Harpooned` records the distance at the moment of the hit (`m_baseDistance`). It only pulls the creature when the creature gets farther away than that. While you reel, the mod shortens `m_baseDistance` toward `MinDistance`, and the vanilla pull then drags the creature in. The mod never shortens the line to more than `m_smoothDistance` below the creature's current distance. At that point the vanilla pull is already at full strength, and reeling can't snap the line by itself.
+
+Whether you're reeling is stored on your player's network object. That way, the machine that controls the creature knows you're reeling even when it isn't your machine.
