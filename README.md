@@ -193,6 +193,27 @@ Put `DamagePreview.dll` in `BepInEx/plugins/DamagePreview/`.
 
 </details>
 
+<details>
+<summary><b>QuietAoe</b>: stops a vanilla warning that can flood the log 50 times a second and cause stutter.</summary>
+
+<br>
+
+Some objects carry an area-damage component that isn't meant to react to touch, such as a pufferfish on an item stand. When something rests against one, for example the feathers from a chicken farm that uses a pufferfish to cull chickens, vanilla writes `AOE got OnTriggerStay but trigger damage is disabled in ...` to the log on every physics tick. That's 50 lines a second for each object touching it. Writing that many Unity warnings causes frame hitches. It can also make creatures your game controls look laggy to other players.
+
+In that situation the game does nothing except write the warning. QuietAoe skips the warning and changes nothing else. A pufferfish on a stand still damages creatures exactly as before.
+
+#### Installation
+
+Put `QuietAoe.dll` in `BepInEx/plugins/QuietAoe/`.
+
+**Multiplayer:** each player who wants the fix needs it. The warning is written by whichever game runs physics for that area, usually the player closest to it. The server doesn't need it.
+
+#### Configuration
+
+`BepInEx/config/andrei.valheim.quietaoe.cfg`: `Enabled`, `DebugLogging` (logs each object that triggers the warning once, with its prefab, position and what touched it, plus a count every 30 seconds).
+
+</details>
+
 ---
 
 ## Requirements
