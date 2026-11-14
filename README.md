@@ -131,6 +131,31 @@ Put `StayLoaded.dll` in `BepInEx/plugins/StayLoaded/`.
 
 </details>
 
+<details>
+<summary><b>QuickFill</b>: Shift + E fills a smelter, kiln, blast furnace or other processing station in one go.</summary>
+
+<br>
+
+In vanilla Valheim, every press of **E** on a smelter puts in one piece of ore or fuel. QuickFill keeps that, and adds **Shift + E**: it puts in as much as the station can take, or as much as you have. It works on every station of this type: smelter, charcoal kiln, blast furnace, spinning wheel, windmill, eitr refinery and so on. Use it on the ore slot or the fuel slot, whichever you're looking at. The hover text shows a "Shift + E Fill" hint.
+
+You get one message, for example "Added Copper ore x7, Tin ore x3", and one "item added" sound, instead of one of each per item.
+
+Each item goes in through the game's normal add-ore or add-fuel code, exactly as if you had pressed E that many times. Other mods that hook into adding items still work, such as InventoryReforged taking ore and fuel from nearby chests.
+
+The modifier is the game's "alternative placement" key (Left Shift by default), the same one other Shift + E actions use.
+
+#### Installation
+
+Put `QuickFill.dll` in `BepInEx/plugins/QuickFill/`.
+
+**Multiplayer:** only you need it for filling. It sends the same messages to the station as pressing E does. The "item added" sound is played by whichever machine controls the station, which can be you, another player or the server. That machine plays the sound once per fill if it has the mod, and once per item if it doesn't. Install it on the server and for your friends too if you want one sound for every fill.
+
+#### Configuration
+
+`BepInEx/config/andrei.valheim.quickfill.cfg`: `Enabled`, `ShowHint` (the "Shift + E Fill" line in the hover text), `DebugLogging`.
+
+</details>
+
 ---
 
 ## Requirements
