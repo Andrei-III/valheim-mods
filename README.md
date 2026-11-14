@@ -156,6 +156,43 @@ Put `QuickFill.dll` in `BepInEx/plugins/QuickFill/`.
 
 </details>
 
+<details>
+<summary><b>DamagePreview</b>: see how much damage your arrow or bolt will deal, drawn on the target's health bar before you shoot.</summary>
+
+<br>
+
+While you draw a bow at a creature, two yellow segments grow on its health bar, starting from the bar's left edge:
+- **Solid yellow:** the damage you'll deal even on the lowest roll.
+- **Faded yellow:** the extra damage you might deal, up to the highest roll.
+- When even the lowest roll would kill, the solid segment turns **white**.
+
+Damage in Valheim is partly random. The roll depends on your skill, so the faded segment shrinks as your Bows or Crossbows skill goes up. A bow's damage also scales with how far it's drawn, so the segments grow as the draw charges. Crossbows show the preview whenever they're loaded.
+
+The prediction takes into account:
+- your weapon and the ammo you have equipped
+- your skill level and, for bows, how far the bow is drawn
+- meads and set bonuses
+- the target's resistances and weaknesses, including weak spots under the crosshair
+- sneak-attack bonuses on creatures that haven't noticed you
+- double damage against staggered creatures
+- multiplayer damage scaling and world damage modifiers
+
+Fire, poison and spirit damage hurt the target over time and aren't drawn.
+
+Works on hostile and neutral creatures (deer, hares and so on) and on bosses, using the boss bar at the top of the screen. Tamed creatures and other players never get a preview. While you aim at a creature, its health bar also shows at range (vanilla only shows it within 10 m).
+
+#### Installation
+
+Put `DamagePreview.dll` in `BepInEx/plugins/DamagePreview/`.
+
+**Multiplayer:** only you need it. The mod reads data the game already syncs and only draws on your own screen.
+
+#### Configuration
+
+`BepInEx/config/andrei.valheim.damagepreview.cfg`: `Enabled`, `IncludeCrossbows`, `MaxRange` (meters, default 60), `GuaranteedColor`, `PossibleColor`, `KillColor`, `DebugLogging` (logs the predicted damage range to `BepInEx/LogOutput.log`).
+
+</details>
+
 ---
 
 ## Requirements
