@@ -5,6 +5,7 @@ BepInEx mods for Valheim.
 | Mod | What it does |
 |---|---|
 | [HarpoonReel](#harpoonreel) | Hold a key to reel a harpooned creature all the way in to you. |
+| [SummonTracker](#summontracker) | Lists your staff summons under the minimap with their name, health and distance. |
 
 ---
 
@@ -78,3 +79,35 @@ dotnet build -c Release -p:ValheimDir=/path/to/Valheim
 Vanilla `SE_Harpooned` records the distance at the moment of the hit (`m_baseDistance`). It only pulls the creature when the creature gets farther away than that. While you reel, the mod shortens `m_baseDistance` toward `MinDistance`, and the vanilla pull then drags the creature in. The mod never shortens the line to more than `m_smoothDistance` below the creature's current distance. At that point the vanilla pull is already at full strength, and reeling can't snap the line by itself.
 
 Whether you're reeling is stored on your player's network object. That way, the machine that controls the creature knows you're reeling even when it isn't your machine.
+
+---
+
+## SummonTracker
+
+Shows a list of your summoned creatures under the minimap: the summons that follow you, like Dead Raiser skeletons. Summons that don't follow you are left out, such as Staff of the Wild roots and Trollstav trolls (which are hostile to everyone). Each row shows:
+- the creature's icon
+- its name (including names you gave it), with level stars
+- a health bar
+- how far away it is (highlighted when it's more than 40 m away)
+
+When a summon dies or gets unsummoned, its row disappears. So when you see fewer rows than your summon limit, you know it's time to summon again.
+
+A row turns dim when the summon is outside your loaded area. Its health and position then show the last known values.
+
+If a summon type is set up to die after a fixed time, its row also shows a countdown.
+
+### Requirements
+
+- [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
+- [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/)
+
+### Installation
+
+Put `SummonTracker.dll` in `BepInEx/plugins/SummonTracker/`.
+
+**Multiplayer:** only you need it. The mod reads data the game already syncs and doesn't change gameplay, so other players and the server don't need it installed.
+
+### Configuration
+
+`BepInEx/config/andrei.valheim.summontracker.cfg`: `ShowDistance`, `Scale`, `FarDistance`, `DebugLogging`.
+
