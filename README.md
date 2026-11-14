@@ -6,6 +6,7 @@ BepInEx mods for Valheim.
 |---|---|
 | [HarpoonReel](#harpoonreel) | Hold a key to reel a harpooned creature all the way in to you. |
 | [SummonTracker](#summontracker) | Lists your staff summons under the minimap with their name, health and distance. |
+| [RepairAll](#repairall) | One click on the repair button repairs every item the crafting station can fix. |
 
 ---
 
@@ -111,3 +112,27 @@ Put `SummonTracker.dll` in `BepInEx/plugins/SummonTracker/`.
 
 `BepInEx/config/andrei.valheim.summontracker.cfg`: `ShowDistance`, `Scale`, `FarDistance`, `DebugLogging`.
 
+---
+
+## RepairAll
+
+In vanilla Valheim, each click on a crafting station's repair button (the hammer) repairs only one item. RepairAll makes a single click repair every worn item in your inventory that the station can repair. It works at any station that can repair: workbench, forge, black forge, galdr table, and so on.
+
+You get one small message in the top-left log ("Repaired 5 items") and one repair sound, instead of a big center-screen message and a sound for every item. If some worn items need a different station or a higher station level, the message tells you how many are left.
+
+The mod uses the vanilla repair code for each item, so the vanilla rules still apply: which station repairs what, station level requirements, and Crafting skill gain.
+
+### Requirements
+
+- [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
+- [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/)
+
+### Installation
+
+Put `RepairAll.dll` in `BepInEx/plugins/RepairAll/`.
+
+**Multiplayer:** only you need it. Item durability is stored in your own inventory, so other players and the server don't need the mod installed.
+
+### Configuration
+
+`BepInEx/config/andrei.valheim.repairall.cfg`: `Enabled` (set to `false` for the vanilla one-item-per-click behavior), `Message` (`TopLeft`, `Center` or `None`; where the repair summary appears), `DebugLogging`.
