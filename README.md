@@ -7,6 +7,7 @@ BepInEx mods for Valheim.
 | [HarpoonReel](#harpoonreel) | Hold a key to reel a harpooned creature all the way in to you. |
 | [SummonTracker](#summontracker) | Lists your staff summons under the minimap with their name, health and distance. |
 | [RepairAll](#repairall) | One click on the repair button repairs every item the crafting station can fix. |
+| [StayLoaded](#stayloaded) | Crossbows and other reload weapons stay loaded when you sheathe them or switch weapons. |
 
 ---
 
@@ -136,3 +137,28 @@ Put `RepairAll.dll` in `BepInEx/plugins/RepairAll/`.
 ### Configuration
 
 `BepInEx/config/andrei.valheim.repairall.cfg`: `Enabled` (set to `false` for the vanilla one-item-per-click behavior), `Message` (`TopLeft`, `Center` or `None`; where the repair summary appears), `DebugLogging`.
+
+---
+
+## StayLoaded
+
+In vanilla Valheim, a weapon that has to be reloaded (like the arbalest) loses its load as soon as you sheathe it with **R** or switch to another weapon. When you draw it again, you have to wait through the reload once more. StayLoaded remembers which of your weapons are loaded. A loaded weapon stays ready to fire until you actually fire it, however often you sheathe it or switch away and back.
+
+Each weapon is tracked separately, so you can carry two loaded crossbows and swap between them. Firing still empties the weapon, and the next reload works as usual.
+
+The loaded state is kept only for the current session. After you log out, or if you drop the weapon and pick it up again, it needs a fresh reload.
+
+### Requirements
+
+- [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/)
+- [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/)
+
+### Installation
+
+Put `StayLoaded.dll` in `BepInEx/plugins/StayLoaded/`.
+
+**Multiplayer:** only you need it. The loaded state belongs to your own character, so other players and the server don't need the mod installed.
+
+### Configuration
+
+`BepInEx/config/andrei.valheim.stayloaded.cfg`: `Enabled`, `DebugLogging`.
