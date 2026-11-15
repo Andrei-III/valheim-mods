@@ -11,6 +11,7 @@ namespace SummonTracker
         public float BaseMaxHealth;  // fallback when the ZDO has no max health yet
         public float Lifetime;       // seconds, 0 = no timed death on this prefab
         public float SpawnTime;      // Time.time when we started tracking (corrected for creatures already alive)
+        public float UnsummonDistance; // Tameable.m_unsummonDistance, 0 = never unsummoned by distance
 
         // Refreshed every frame from the ZDO
         public string Name;
@@ -72,6 +73,7 @@ namespace SummonTracker
                 // The timeout is rolled randomly between min and max; show the earliest it can happen.
                 Lifetime = timed && timed.m_triggerOnAwake ? timed.m_timeoutMin : 0f,
                 SpawnTime = Time.time - alreadyAlive,
+                UnsummonDistance = character.GetComponent<Tameable>()?.m_unsummonDistance ?? 0f,
             };
             s_byId[s.Id] = s;
             Summons.Add(s);
@@ -116,6 +118,16 @@ namespace SummonTracker
                 s.Name = string.IsNullOrEmpty(tamedName) ? s.DefaultName : tamedName;
                 s.Distance = Vector3.Distance(playerPos, zdo.GetPosition());
                 s.Loaded = ZNetScene.instance.FindInstance(s.Id) != null;
+
+                // Left behind: the game only runs the unsummon-distance check while the summon is loaded, so one
+                // abandoned in an unloaded area sits frozen in the world. It's still lost, though: the next time it
+                // loads near its owner it unsummons immediately. Drop it now instead of showing a stale row.
+                if (!s.Loaded && s.UnsummonDistance > 0f && s.Distance > s.UnsummonDistance)
+                {
+                    SummonTrackerPlugin.Debug($"Untracking {s.Id} (left behind, {s.Distance:0}m > {s.UnsummonDistance:0}m)");
+                    s_byId.Remove(s.Id);
+                    Summons.RemoveAt(i);
+                }
             }
         }
 
