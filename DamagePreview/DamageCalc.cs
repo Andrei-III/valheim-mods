@@ -53,17 +53,43 @@ namespace DamagePreview
                 if (col.attachedRigidbody && col.attachedRigidbody.gameObject == player.gameObject) continue;
                 if (col.transform.IsChildOf(player.transform)) continue;
 
-                var c = col.attachedRigidbody ? col.attachedRigidbody.GetComponent<Character>() : null;
-                if (c == null) c = col.GetComponentInParent<Character>();
-                // First thing hit is not a creature: it's a wall/tree/ground blocking the shot.
-                if (c == null) return false;
-                if (c.IsDead() || c.IsPlayer() || c.IsTamed()) return false;
-
-                target = c;
-                collider = col;
-                return true;
+                // First thing hit decides: a wall/tree/ground blocks the shot.
+                return TryResolveTarget(col, out target, out collider);
             }
             return false;
+        }
+
+        // Target from ArrowArc's predicted impact instead of the crosshair. Returns false (no preview) when the
+        // arc lands on something that isn't a valid creature or beyond MaxRange.
+        public static bool TryTargetFromArc(Player player, Collider hit, float range, out Character target, out Collider collider)
+        {
+            target = null;
+            collider = null;
+            if (hit == null) return false;
+            // Resolve first: the arc usually lands on terrain/rocks/buildings, and ClosestPoint is only supported on
+            // primitive and convex mesh colliders (anything else logs a warning every frame).
+            if (!TryResolveTarget(hit, out target, out collider)) return false;
+            var from = player.transform.position;
+            var near = SupportsClosestPoint(hit) ? hit.ClosestPoint(from) : target.transform.position;
+            if (Vector3.Distance(from, near) <= range) return true;
+            target = null;
+            collider = null;
+            return false;
+        }
+
+        private static bool SupportsClosestPoint(Collider c) =>
+            c is BoxCollider || c is SphereCollider || c is CapsuleCollider || (c is MeshCollider m && m.convex);
+
+        private static bool TryResolveTarget(Collider col, out Character target, out Collider collider)
+        {
+            target = null;
+            collider = null;
+            var c = col.attachedRigidbody ? col.attachedRigidbody.GetComponent<Character>() : null;
+            if (c == null) c = col.GetComponentInParent<Character>();
+            if (c == null || c.IsDead() || c.IsPlayer() || c.IsTamed()) return false;
+            target = c;
+            collider = col;
+            return true;
         }
 
         public static bool TryPredict(Player player, Character target, Collider hitCollider, out Prediction result)

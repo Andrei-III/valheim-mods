@@ -38,7 +38,14 @@ namespace DamagePreview
             _hasPrediction = false;
             var player = Player.m_localPlayer;
             if (!DamagePreviewPlugin.Enabled.Value || player == null || player.IsDead()) return;
-            if (!DamageCalc.TryFindTarget(player, DamagePreviewPlugin.MaxRange.Value, out var target, out var col)) return;
+            float range = DamagePreviewPlugin.MaxRange.Value;
+            Character target;
+            Collider col;
+            if (DamagePreviewPlugin.UseArrowArc.Value && ArrowArcLink.TryGetArcHit(out var arcHit))
+            {
+                if (!DamageCalc.TryTargetFromArc(player, arcHit, range, out target, out col)) return;
+            }
+            else if (!DamageCalc.TryFindTarget(player, range, out target, out col)) return;
             if (!DamageCalc.TryPredict(player, target, col, out _current)) return;
             _hasPrediction = true;
 

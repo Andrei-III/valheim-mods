@@ -179,6 +179,8 @@ The prediction takes into account:
 
 Fire, poison and spirit damage hurt the target over time and aren't drawn.
 
+**With ArrowArc:** when **ArrowArc** (below) is installed and drawing an arc for your weapon, the preview is for the creature the arc lands on, so arrow drop is taken into account. Otherwise it's for the creature under the crosshair. Turn this off with `UseArrowArc = false`.
+
 Works on hostile and neutral creatures (deer, hares and so on) and on bosses, using the boss bar at the top of the screen. Tamed creatures and other players never get a preview. While you aim at a creature, its health bar also shows at range (vanilla only shows it within 10 m).
 
 #### Installation
@@ -189,7 +191,35 @@ Put `DamagePreview.dll` in `BepInEx/plugins/DamagePreview/`.
 
 #### Configuration
 
-`BepInEx/config/andrei.valheim.damagepreview.cfg`: `Enabled`, `IncludeCrossbows`, `MaxRange` (meters, default 60), `GuaranteedColor`, `PossibleColor`, `KillColor`, `DebugLogging` (logs the predicted damage range to `BepInEx/LogOutput.log`).
+`BepInEx/config/andrei.valheim.damagepreview.cfg`: `Enabled`, `IncludeCrossbows`, `MaxRange` (meters, default 60), `UseArrowArc` (see below), `GuaranteedColor`, `PossibleColor`, `KillColor`, `DebugLogging` (logs the predicted damage range to `BepInEx/LogOutput.log`).
+
+</details>
+
+<details>
+<summary><b>ArrowArc</b>: draws the path your arrow, bolt or grappling hook will fly, and where it lands, before you shoot.</summary>
+
+<br>
+
+While you draw a bow, a thin line shows the shot's predicted flight, with a ring where it lands. Crossbows and the grappling hook show it whenever they're loaded. The line follows the game's own launch and flight rules: the weapon and ammo speed, how far the bow is drawn, gravity and air drag.
+
+The colour tells you what the shot will do:
+- **White:** it lands on terrain, a building or water.
+- **Red:** it hits a creature.
+- **Blue:** it hits nothing. The shot runs out of flight time in mid-air (the grappling hook only flies about 40 m) or goes past `MaxDistance`.
+
+The ring's size shows the shot's random spread at that distance, so it shrinks as a bow charges.
+
+Each weapon type can be turned on or off. For example, you can keep the arc for the grappling hook only. When the arc is off for a weapon, **DamagePreview** goes back to the creature under the crosshair for it.
+
+#### Installation
+
+Put `ArrowArc.dll` in `BepInEx/plugins/ArrowArc/`.
+
+**Multiplayer:** only you need it. The mod predicts the shot locally and only draws on your own screen.
+
+#### Configuration
+
+`BepInEx/config/andrei.valheim.arrowarc.cfg`: `Enabled`, `ShowForBows`, `ShowForCrossbows`, `ShowForGrapplingHook`, `OnlyAtFullDraw` (hide the arc until the bow is fully drawn), `MaxDistance` (meters, default 200), `ShowImpactMarker`, `MarkerShowsSpread`, `LineWidth`, `LineColor`, `CreatureHitColor`, `NoHitColor`, `DebugLogging` (logs the launch speed, gravity and drag to `BepInEx/LogOutput.log`).
 
 </details>
 

@@ -8,19 +8,21 @@ namespace DamagePreview
 {
     [BepInPlugin(Guid, Name, Version)]
     [BepInDependency(Jotunn.Main.ModGuid)]
+    [BepInDependency("andrei.valheim.arrowarc", BepInDependency.DependencyFlags.SoftDependency)]
     // Purely visual: reads data the client already has and draws on the local HUD, so nobody else needs it.
     [NetworkCompatibility(CompatibilityLevel.NotEnforced, VersionStrictness.None)]
     public class DamagePreviewPlugin : BaseUnityPlugin
     {
         public const string Guid = "andrei.valheim.damagepreview";
         public const string Name = "DamagePreview";
-        public const string Version = "1.0.0";
+        public const string Version = "1.1.0";
 
         internal static BepInEx.Logging.ManualLogSource Log;
 
         internal static ConfigEntry<bool> Enabled;
         internal static ConfigEntry<bool> IncludeCrossbows;
         internal static ConfigEntry<float> MaxRange;
+        internal static ConfigEntry<bool> UseArrowArc;
         internal static ConfigEntry<Color> GuaranteedColor;
         internal static ConfigEntry<Color> PossibleColor;
         internal static ConfigEntry<Color> KillColor;
@@ -39,6 +41,9 @@ namespace DamagePreview
             MaxRange = Config.Bind("1 - General", "MaxRange", 60f,
                 new ConfigDescription("How far away (in meters) a creature can be and still get a preview.",
                     new AcceptableValueRange<float>(5f, 200f)));
+            UseArrowArc = Config.Bind("1 - General", "UseArrowArc", true,
+                "When the ArrowArc mod is installed and drawing an arc, preview the creature the arc lands on " +
+                "(accounts for arrow drop) instead of the one under the crosshair.");
 
             GuaranteedColor = Config.Bind("2 - Colors", "GuaranteedColor", new Color(1f, 0.85f, 0.1f, 0.95f),
                 "Segment for the damage you'll deal even on the lowest roll.");
