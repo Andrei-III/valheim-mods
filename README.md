@@ -244,6 +244,52 @@ Put `QuietAoe.dll` in `BepInEx/plugins/QuietAoe/`.
 
 </details>
 
+<details>
+<summary><b>BallistaGuard</b>: a ballista with no trophy shoots hostile creatures instead of everything, you included, and sees all around it.</summary>
+
+<br>
+
+In vanilla, a ballista with no trophy loaded shoots the closest living thing it can see: players, tames, deer, chickens and Dvergr included. Loading trophies is the only way to filter it, and that limits it to a few creature types. With BallistaGuard, a ballista with no trophy only shoots hostile creatures: monsters from every biome, sea monsters and bosses. It still ignores sleeping creatures and anything it can't see. Each of these groups is left alone by default, and each has a setting to target it:
+
+- players
+- tamed creatures and staff summons
+- passive animals that aren't tamed
+- Dvergr that aren't angry at you
+
+Creatures listed in `AlwaysTarget` are always shot unless tamed. The default list is boars, necks and greylings, which break windmills and other buildings at night. A ballista with trophies loaded still targets only those creatures, like vanilla.
+
+The mod also:
+- **Targets in a full circle.** The vanilla ballista covers only 50° to each side of where it faces. With the mod it turns to shoot in any direction. The range stays at vanilla 30 m, and the ring on the ground shows the full circle. With no target, it still sweeps back and forth across its front like vanilla.
+- **Turns faster.** The default is twice as fast as vanilla's 45° per second, so a half turn takes about 2 s.
+- **Fires faster.** The default is one bolt every 1.6 s instead of every 2 s, which lets its staggers be followed up. Ammo runs out faster accordingly.
+
+Burnt ballistas found in the world aren't affected.
+
+#### Installation
+
+Put `BallistaGuard.dll` in `BepInEx/plugins/BallistaGuard/`.
+
+**Multiplayer:** every player should have it, with the same config. The ballista is controlled by one player's game, usually whoever reached the area first. That game picks the targets and fires. If that player doesn't have the mod, the ballista behaves like vanilla and can shoot players. The server doesn't need it.
+
+#### Configuration
+
+The settings are in `BepInEx/config/andrei.valheim.ballistaguard.cfg`.
+
+| Setting | Default | Description |
+|---|---|---|
+| `Enabled` | `true` | Use the hostile-only targeting for ballistas with no trophy. |
+| `FullCircle` | `true` | See and aim all around, not just 50° to each side. Applies with or without trophies. |
+| `TurnRateMultiplier` | `2` (0.5 to 5) | Multiplier for turning speed. 1 is vanilla. |
+| `FireRateMultiplier` | `1.25` (0.5 to 3) | Multiplier for fire rate. 1 is vanilla (one bolt every 2 s). |
+| `HoverLabel` | `hostiles` | Shown as the target in the ballista's hover text when no trophy is loaded. Vanilla shows "everything". |
+| `TargetPlayers` | `false` | Also shoot players. |
+| `TargetTamed` | `false` | Also shoot tamed creatures and staff summons. |
+| `TargetPassiveAnimals` | `false` | Also shoot passive animals that aren't tamed, such as deer and chickens. |
+| `TargetDverger` | `false` | Also shoot Dvergr that aren't angry at you. Angry Dvergr are always shot. |
+| `AlwaysTarget` | `Boar,Neck,Greyling` | Comma-separated creature prefab names that are always shot unless tamed. |
+
+</details>
+
 ---
 
 ## Requirements
