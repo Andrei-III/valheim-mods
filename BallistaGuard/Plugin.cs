@@ -15,7 +15,7 @@ namespace BallistaGuard
     {
         public const string Guid = "andrei.valheim.ballistaguard";
         public const string Name = "BallistaGuard";
-        public const string Version = "1.0.0";
+        public const string Version = "1.1.0";
 
         internal static BepInEx.Logging.ManualLogSource Log;
         internal static ConfigEntry<bool> Enabled;
@@ -28,6 +28,7 @@ namespace BallistaGuard
         internal static ConfigEntry<bool> FullCircle;
         internal static ConfigEntry<float> TurnRateMultiplier;
         internal static ConfigEntry<float> FireRateMultiplier;
+        internal static ConfigEntry<int> MaxAmmo;
         internal static readonly HashSet<string> AlwaysTargetNames =
             new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
 
@@ -70,6 +71,10 @@ namespace BallistaGuard
                 new ConfigDescription("Multiplies how often turrets fire (vanilla ballista: one bolt every 2 s). " +
                     "1 = vanilla, 1.25 = every 1.6 s, 2 = every 1 s. Ammo runs out faster accordingly.",
                     new AcceptableValueRange<float>(0.5f, 3f)));
+            MaxAmmo = Config.Bind("1 - General", "MaxAmmo", 100,
+                new ConfigDescription("How many bolts a turret holds (vanilla ballista: 40). 0 = vanilla. " +
+                    "The cap is checked by whoever loads the turret, so players without the mod still stop at 40.",
+                    new AcceptableValueRange<int>(0, 1000)));
             HoverLabel = Config.Bind("1 - General", "HoverLabel", "hostiles",
                 "Shown as the turret's target in its hover text when no trophy is set (vanilla shows 'everything').");
             _harmony = Harmony.CreateAndPatchAll(typeof(TurretPatches), Guid);
@@ -90,6 +95,29 @@ namespace BallistaGuard
 
         private static readonly AccessTools.FieldRef<Turret, Character> Target =
             AccessTools.FieldRefAccess<Turret, Character>("m_target");
+
+        // Vanilla only compares against m_maxAmmo when loading (Turret.UseItem, on the loading player's
+        // machine); the owner's RPC_AddAmmo just adds one. So raising it locally is all that's needed.
+        private static readonly Dictionary<Turret, int> VanillaMaxAmmo = new Dictionary<Turret, int>();
+
+        [HarmonyPatch(typeof(Turret), "Awake")]
+        [HarmonyPostfix]
+        private static void Awake_Postfix(Turret __instance) => ApplyMaxAmmo(__instance);
+
+        // Re-applied on hover so config changes take effect without rebuilding the turret.
+        internal static void ApplyMaxAmmo(Turret t)
+        {
+            if (!VanillaMaxAmmo.TryGetValue(t, out int vanilla))
+            {
+                if (VanillaMaxAmmo.Count > 256)
+                    foreach (Turret dead in new List<Turret>(VanillaMaxAmmo.Keys)) if (!dead) VanillaMaxAmmo.Remove(dead);
+                vanilla = t.m_maxAmmo;
+                VanillaMaxAmmo[t] = vanilla;
+            }
+            if (vanilla <= 0) return; // 0 = unlimited ammo, leave alone
+            int wanted = BallistaGuardPlugin.MaxAmmo.Value;
+            t.m_maxAmmo = wanted > 0 ? Mathf.Max(wanted, vanilla) : vanilla;
+        }
 
         [HarmonyPatch(typeof(Turret), "UpdateTarget")]
         [HarmonyPrefix]
@@ -215,6 +243,10 @@ namespace BallistaGuard
                     return true; // monsters of every biome, sea monsters, bosses
             }
         }
+
+        [HarmonyPatch(typeof(Turret), nameof(Turret.GetHoverText))]
+        [HarmonyPrefix]
+        private static void GetHoverText_Prefix(Turret __instance) => ApplyMaxAmmo(__instance);
 
         [HarmonyPatch(typeof(Turret), nameof(Turret.GetHoverText))]
         [HarmonyPostfix]

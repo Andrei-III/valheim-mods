@@ -17,7 +17,7 @@ namespace QuickFill
     {
         public const string Guid = "andrei.valheim.quickfill";
         public const string Name = "QuickFill";
-        public const string Version = "1.0.0";
+        public const string Version = "1.1.0";
 
         internal static BepInEx.Logging.ManualLogSource Log;
 
@@ -32,7 +32,7 @@ namespace QuickFill
             Log = Logger;
 
             Enabled = Config.Bind("1 - General", "Enabled", true,
-                "Shift + E on a smelter, kiln, blast furnace, etc. adds as many items as it can take. Plain E keeps the vanilla one-at-a-time behavior.");
+                "Shift + E on a smelter, kiln, blast furnace, ballista, etc. adds as many items as it can take (also ballistas, fires and torches, and the Ashlands shield generator). Plain E keeps the vanilla one-at-a-time behavior.");
             ShowHint = Config.Bind("1 - General", "ShowHint", true,
                 "Add a \"Shift + E  Fill\" line to the hover text.");
             DebugLogging = Config.Bind("2 - Debug", "DebugLogging", false,
@@ -57,6 +57,7 @@ namespace QuickFill
     internal static class FillPatches
     {
         private delegate bool AddCallback(Smelter smelter, Switch sw, Humanoid user, ItemDrop.ItemData item);
+        private delegate bool AddCallback<T>(T station, Switch sw, Humanoid user, ItemDrop.ItemData item);
 
         // These go through Harmony's patched methods, so other mods' patches (e.g. pulling ore from
         // nearby chests) run on every single add, exactly as if the player had pressed E each time.
@@ -84,6 +85,10 @@ namespace QuickFill
             if (!alt || hold || !QuickFillPlugin.Enabled.Value) return true;
             if (!character || character != Player.m_localPlayer) return true;
 
+            ShieldGenerator shield = __instance.GetComponentInParent<ShieldGenerator>();
+            if (shield && shield.m_addFuelSwitch == __instance)
+                return FillShield(shield, __instance, character, ref __result);
+
             Smelter smelter = __instance.GetComponentInParent<Smelter>();
             if (!smelter) return true;
 
@@ -99,24 +104,96 @@ namespace QuickFill
             if (free <= 0) return true; // vanilla says "It's full"
 
             AddCallback add = isOre ? OnAddOre : OnAddFuel;
+            int added = Fill(character, free, () => add(smelter, __instance, character, null));
+            __result = added > 0;
+            QuickFillPlugin.Debug($"Filled {smelter.m_name} ({(isOre ? "ore" : "fuel")}): {added} of {free} free");
+            return false;
+        }
+
+        private static readonly AddCallback<ShieldGenerator> OnAddShieldFuel =
+            AccessTools.MethodDelegate<AddCallback<ShieldGenerator>>(AccessTools.Method(typeof(ShieldGenerator), "OnAddFuel"));
+        private static readonly Func<ShieldGenerator, float> GetShieldFuel =
+            AccessTools.MethodDelegate<Func<ShieldGenerator, float>>(AccessTools.Method(typeof(ShieldGenerator), "GetFuel"));
+
+        // Ashlands shield generator: same switch-based add as a smelter's fuel slot (bones).
+        private static bool FillShield(ShieldGenerator shield, Switch sw, Humanoid character, ref bool __result)
+        {
+            int free = Mathf.FloorToInt(shield.m_maxFuel - GetShieldFuel(shield));
+            if (free <= 0) return true; // vanilla says "It's full"
+
+            int added = Fill(character, free, () => OnAddShieldFuel(shield, sw, character, null));
+            __result = added > 0;
+            QuickFillPlugin.Debug($"Filled {shield.m_name}: {added} of {free} free");
+            return false;
+        }
+
+        // Shift + E on a ballista (or any turret with limited ammo) loads as many bolts as it has room for.
+        // The free count uses m_maxAmmo as seen on this client, so a raised cap (BallistaGuard's MaxAmmo) applies.
+        [HarmonyPatch(typeof(Turret), nameof(Turret.Interact))]
+        [HarmonyPrefix]
+        private static bool Turret_Interact_Prefix(Turret __instance, Humanoid character, bool hold, bool alt, ref bool __result)
+        {
+            if (!alt || hold || !QuickFillPlugin.Enabled.Value) return true;
+            if (!character || character != Player.m_localPlayer) return true;
+            if (!__instance.m_targetEnemies || __instance.m_maxAmmo <= 0) return true;
+
+            int free = __instance.m_maxAmmo - __instance.GetAmmo();
+            if (free <= 0) return true; // vanilla says "It's full"
+
+            int added = Fill(character, free, () => __instance.UseItem(character, null));
+            __result = added > 0;
+            QuickFillPlugin.Debug($"Filled {__instance.m_name}: {added} of {free} free");
+            return false;
+        }
+
+        // Shift + E on a hearth, campfire, bonfire, torch, brazier, hot tub, ... adds fuel up to its maximum.
+        // Vanilla Fireplace.Interact already treats alt as "add fuel" (instead of toggling a light off), so
+        // the loop just calls it again with alt; _filling lets those calls through this prefix.
+        [HarmonyPatch(typeof(Fireplace), nameof(Fireplace.Interact))]
+        [HarmonyPrefix]
+        // Fireplace names the parameter "user" (Harmony binds by name).
+        private static bool Fireplace_Interact_Prefix(Fireplace __instance, Humanoid user, bool hold, bool alt, ref bool __result)
+        {
+            Humanoid character = user;
+            if (_filling || !alt || hold || !QuickFillPlugin.Enabled.Value) return true;
+            if (!character || character != Player.m_localPlayer) return true;
+            if (!__instance.m_canRefill || __instance.m_infiniteFuel || !__instance.m_fuelItem) return true;
+            ZNetView nview = __instance.GetComponent<ZNetView>();
+            if (!nview || !nview.IsValid()) return true;
+
+            // Same "full" rule as vanilla: whole units, rounding the current fuel up.
+            float fuel = nview.GetZDO().GetFloat(ZDOVars.s_fuel);
+            int free = Mathf.FloorToInt(__instance.m_maxFuel) - Mathf.CeilToInt(fuel);
+            if (free <= 0) return true; // vanilla says "Can't add more"
+
+            int added = Fill(character, free, () => __instance.Interact(character, false, true),
+                __instance.m_fuelItem.m_itemData.m_shared.m_name);
+            __result = added > 0;
+            QuickFillPlugin.Debug($"Filled {__instance.m_name}: {added} of {free} free");
+            return false;
+        }
+
+        // Calls the vanilla one-item add until it fails or `free` items went in, then shows one summary message.
+        // addedName: the item's display name when vanilla's per-item message isn't "$msg_added <item>"
+        // (fireplaces say "Adding wood"), so the summary can't be built from the captured messages.
+        private static int Fill(Humanoid character, int free, Func<bool> addOne, string addedName = null)
+        {
             int added = 0;
             Captured.Clear();
             _filling = true;
             try
             {
-                while (added < free && add(smelter, __instance, character, null))
+                while (added < free && addOne())
                     added++;
             }
             finally
             {
                 _filling = false;
             }
-
-            __result = added > 0;
-            character.Message(MessageHud.MessageType.Center, Summary(added));
-            QuickFillPlugin.Debug($"Filled {smelter.m_name} ({(isOre ? "ore" : "fuel")}): {added} of {free} free");
+            string summary = added > 0 && addedName != null ? $"{AddedPrefix}{addedName} x{added}" : Summary(added);
+            character.Message(MessageHud.MessageType.Center, summary);
             Captured.Clear();
-            return false;
+            return added;
         }
 
         [HarmonyPatch(typeof(Player), nameof(Player.Message))]
@@ -151,13 +228,13 @@ namespace QuickFill
         private static readonly Dictionary<Smelter, float> LastOreEffect = new Dictionary<Smelter, float>();
         private static readonly Dictionary<Smelter, float> LastFuelEffect = new Dictionary<Smelter, float>();
 
-        private static bool Throttle(Smelter smelter, Dictionary<Smelter, float> last)
+        private static bool Throttle<T>(T station, Dictionary<T, float> last) where T : UnityEngine.Object
         {
             float now = Time.time;
-            bool mute = last.TryGetValue(smelter, out float t) && now - t < EffectCooldown;
-            if (!mute) last[smelter] = now;
+            bool mute = last.TryGetValue(station, out float t) && now - t < EffectCooldown;
+            if (!mute) last[station] = now;
             if (last.Count > 64) // forget destroyed stations
-                foreach (Smelter dead in last.Keys.Where(k => !k).ToList()) last.Remove(dead);
+                foreach (T dead in last.Keys.Where(k => !k).ToList()) last.Remove(dead);
             return mute;
         }
 
@@ -193,6 +270,85 @@ namespace QuickFill
         private static void RPC_AddFuel_Finalizer(Smelter __instance, EffectList __state)
         {
             if (__state != null) __instance.m_fuelAddedEffects = __state;
+        }
+
+        private static readonly Dictionary<Turret, float> LastAmmoEffect = new Dictionary<Turret, float>();
+
+        [HarmonyPatch(typeof(Turret), "RPC_AddAmmo")]
+        [HarmonyPrefix]
+        private static void RPC_AddAmmo_Prefix(Turret __instance, out EffectList __state)
+        {
+            __state = null;
+            if (!Throttle(__instance, LastAmmoEffect)) return;
+            __state = __instance.m_addAmmoEffect;
+            __instance.m_addAmmoEffect = Silent;
+        }
+
+        [HarmonyPatch(typeof(Turret), "RPC_AddAmmo")]
+        [HarmonyFinalizer]
+        private static void RPC_AddAmmo_Finalizer(Turret __instance, EffectList __state)
+        {
+            if (__state != null) __instance.m_addAmmoEffect = __state;
+        }
+
+        [HarmonyPatch(typeof(Turret), nameof(Turret.GetHoverText))]
+        [HarmonyPostfix]
+        private static void Turret_GetHoverText_Postfix(Turret __instance, ref string __result)
+        {
+            // Vanilla shows the "add ammo" line only to players with ward access; match that.
+            if (__instance.m_targetEnemies && __instance.m_maxAmmo > 0 &&
+                PrivateArea.CheckAccess(__instance.transform.position, 0f, flash: false))
+                AppendHint(ref __result);
+        }
+
+        private static readonly Dictionary<ShieldGenerator, float> LastShieldEffect = new Dictionary<ShieldGenerator, float>();
+
+        [HarmonyPatch(typeof(ShieldGenerator), "RPC_AddFuel")]
+        [HarmonyPrefix]
+        private static void Shield_RPC_AddFuel_Prefix(ShieldGenerator __instance, out EffectList __state)
+        {
+            __state = null;
+            if (!Throttle(__instance, LastShieldEffect)) return;
+            __state = __instance.m_fuelAddedEffects;
+            __instance.m_fuelAddedEffects = Silent;
+        }
+
+        [HarmonyPatch(typeof(ShieldGenerator), "RPC_AddFuel")]
+        [HarmonyFinalizer]
+        private static void Shield_RPC_AddFuel_Finalizer(ShieldGenerator __instance, EffectList __state)
+        {
+            if (__state != null) __instance.m_fuelAddedEffects = __state;
+        }
+
+        [HarmonyPatch(typeof(ShieldGenerator), "OnHoverAddFuel")]
+        [HarmonyPostfix]
+        private static void Shield_OnHoverAddFuel_Postfix(ref string __result) => AppendHint(ref __result);
+
+        private static readonly Dictionary<Fireplace, float> LastFireEffect = new Dictionary<Fireplace, float>();
+
+        [HarmonyPatch(typeof(Fireplace), "RPC_AddFuel")]
+        [HarmonyPrefix]
+        private static void Fire_RPC_AddFuel_Prefix(Fireplace __instance, out EffectList __state)
+        {
+            __state = null;
+            if (!Throttle(__instance, LastFireEffect)) return;
+            __state = __instance.m_fuelAddedEffects;
+            __instance.m_fuelAddedEffects = Silent;
+        }
+
+        [HarmonyPatch(typeof(Fireplace), "RPC_AddFuel")]
+        [HarmonyFinalizer]
+        private static void Fire_RPC_AddFuel_Finalizer(Fireplace __instance, EffectList __state)
+        {
+            if (__state != null) __instance.m_fuelAddedEffects = __state;
+        }
+
+        [HarmonyPatch(typeof(Fireplace), nameof(Fireplace.GetHoverText))]
+        [HarmonyPostfix]
+        private static void Fire_GetHoverText_Postfix(Fireplace __instance, ref string __result)
+        {
+            if (__instance.m_canRefill && !__instance.m_infiniteFuel && !string.IsNullOrEmpty(__result))
+                AppendHint(ref __result);
         }
 
         [HarmonyPatch(typeof(Smelter), "OnHoverAddOre")]
