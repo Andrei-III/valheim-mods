@@ -87,13 +87,13 @@ jobs:
 
           curl -sSLf -o "$tmp/bepinex.zip" \
             "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/${BEPINEX_PACK_VERSION}/"
-          unzip -q "$tmp/bepinex.zip" -d "$tmp/bepinex"
+          unzip -q "$tmp/bepinex.zip" -d "$tmp/bepinex" || [ $? -eq 1 ] # 1 = warning (Windows-made zip with backslash paths), files still extracted
           cp "$(find "$tmp/bepinex" -path '*/BepInEx/core/BepInEx.dll' | head -n1)" refs/BepInEx/core/
           cp "$(find "$tmp/bepinex" -path '*/BepInEx/core/0Harmony.dll' | head -n1)" refs/BepInEx/core/
 
           curl -sSLf -o "$tmp/jotunn.zip" \
             "https://thunderstore.io/package/download/ValheimModding/Jotunn/${JOTUNN_VERSION}/"
-          unzip -q "$tmp/jotunn.zip" -d "$tmp/jotunn"
+          unzip -q "$tmp/jotunn.zip" -d "$tmp/jotunn" || [ $? -eq 1 ] # 1 = warning (Windows-made zip with backslash paths), files still extracted
           cp "$(find "$tmp/jotunn" -name Jotunn.dll | head -n1)" refs/BepInEx/plugins/Jotunn/
 
           rm -rf "$tmp"
