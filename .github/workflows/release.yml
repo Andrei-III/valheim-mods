@@ -1,0 +1,108 @@
+# Builds every mod and publishes a GitHub release (for UpdateValheimMods.bat) whenever a push to
+# main changes mod code, the release script or the updater. Can also be started by hand from the
+# Actions tab ("Run workflow").
+#
+# The game's own DLLs aren't in the repo, so they're downloaded: only the Managed DLLs of the free
+# Valheim dedicated server (Steam app 896660, anonymous login), plus BepInEx and Jotunn from
+# Thunderstore. They're used to compile against, never published, and cached until Valheim updates
+# or a pinned version below changes.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*/*.cs'
+      - '*/*.csproj'
+      - 'release.sh'
+      - 'UpdateValheimMods.bat'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  DEPOTDOWNLOADER_VERSION: '3.4.0'
+  BEPINEX_PACK_VERSION: '5.4.2360'
+  JOTUNN_VERSION: '2.30.2'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # release notes list the commits since the previous release tag
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ hashFiles('*/*.csproj') }}
+          restore-keys: nuget-
+
+      # Cache key for the game libraries: the dedicated server's current public Steam build, so a
+      # Valheim patch means a fresh download. If the lookup fails, fall back to one download a week.
+      - name: Find Valheim server build
+        id: build
+        run: |
+          id="$(curl -sSf --max-time 20 https://api.steamcmd.net/v1/info/896660 \
+            | jq -r '.data["896660"].depots.branches.public.buildid // empty' || true)"
+          echo "id=${id:-week-$(date -u +%G-%V)}" >> "$GITHUB_OUTPUT"
+          echo "Valheim server build: ${id:-unknown}"
+
+      - name: Cache game libraries
+        id: refs-cache
+        uses: actions/cache@v4
+        with:
+          path: refs
+          key: valheim-refs-${{ steps.build.outputs.id }}-dd${{ env.DEPOTDOWNLOADER_VERSION }}-bep${{ env.BEPINEX_PACK_VERSION }}-jot${{ env.JOTUNN_VERSION }}
+
+      - name: Download game libraries
+        if: steps.refs-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          rm -rf refs
+          mkdir -p refs/server refs/BepInEx/core refs/BepInEx/plugins/Jotunn
+          tmp="$(mktemp -d)"
+
+          curl -sSLf -o "$tmp/dd.zip" \
+            "https://github.com/SteamRE/DepotDownloader/releases/download/DepotDownloader_${DEPOTDOWNLOADER_VERSION}/DepotDownloader-linux-x64.zip"
+          unzip -q "$tmp/dd.zip" -d "$tmp/dd"
+          chmod +x "$tmp/dd/DepotDownloader"
+          cat > "$tmp/filelist.txt" <<'EOF'
+          regex:valheim_server_Data[\\/]Managed[\\/][^\\/]+\.dll$
+          EOF
+          "$tmp/dd/DepotDownloader" -app 896660 -os linux -filelist "$tmp/filelist.txt" -dir refs/server
+          rm -rf refs/server/.DepotDownloader
+          test -f refs/server/valheim_server_Data/Managed/assembly_valheim.dll
+
+          curl -sSLf -o "$tmp/bepinex.zip" \
+            "https://thunderstore.io/package/download/denikson/BepInExPack_Valheim/${BEPINEX_PACK_VERSION}/"
+          unzip -q "$tmp/bepinex.zip" -d "$tmp/bepinex"
+          cp "$(find "$tmp/bepinex" -path '*/BepInEx/core/BepInEx.dll' | head -n1)" refs/BepInEx/core/
+          cp "$(find "$tmp/bepinex" -path '*/BepInEx/core/0Harmony.dll' | head -n1)" refs/BepInEx/core/
+
+          curl -sSLf -o "$tmp/jotunn.zip" \
+            "https://thunderstore.io/package/download/ValheimModding/Jotunn/${JOTUNN_VERSION}/"
+          unzip -q "$tmp/jotunn.zip" -d "$tmp/jotunn"
+          cp "$(find "$tmp/jotunn" -name Jotunn.dll | head -n1)" refs/BepInEx/plugins/Jotunn/
+
+          rm -rf "$tmp"
+          ls -l refs/BepInEx/core refs/BepInEx/plugins/Jotunn
+
+      - name: Point the build at the game libraries
+        run: echo "BUILD_PROPS=-p:ManagedDir=$PWD/refs/server/valheim_server_Data/Managed -p:BepInExDir=$PWD/refs/BepInEx" >> "$GITHUB_ENV"
+
+      - name: Build and publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./release.sh

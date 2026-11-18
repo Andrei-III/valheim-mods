@@ -34,7 +34,7 @@
   </ItemGroup>
 
   <!-- After a build, copy the DLL into the client's plugin folder. -->
-  <Target Name="DeployToClient" AfterTargets="Build">
+  <Target Name="DeployToClient" AfterTargets="Build" Condition="'$(SkipDeploy)' != 'true'">
     <MakeDir Directories="$(BepInExDir)/plugins/SmoothNet" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(BepInExDir)/plugins/SmoothNet" />
   </Target>

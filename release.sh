@@ -1,21 +1,25 @@
 #!/usr/bin/env bash
 # Builds every mod and publishes them as a GitHub release, for UpdateValheimMods.bat to download.
+# Normally run by .github/workflows/release.yml on every push to main that changes mod code.
 #
 #   ./release.sh            # release what's committed and pushed on main
 #   ./release.sh --dry-run  # build and zip only, print what would be published
+#
+# Extra msbuild properties can be passed in BUILD_PROPS (CI points ManagedDir/BepInExDir at the
+# downloaded game libraries). Builds never copy DLLs into the game folder (SkipDeploy).
 #
 # The zip is always uploaded as "valheim-mods.zip", so the latest one is at
 # https://github.com/Andrei-III/valheim-mods/releases/latest/download/valheim-mods.zip
 set -euo pipefail
 
-REPO="Andrei-III/valheim-mods"
+REPO="${GITHUB_REPOSITORY:-Andrei-III/valheim-mods}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 DRY_RUN=0
 [[ "${1:-}" == "--dry-run" ]] && DRY_RUN=1
 cd "$ROOT"
 
 # Only release code that's committed and pushed, so the release matches the repo.
-if [[ $DRY_RUN -eq 0 ]]; then
+if [[ $DRY_RUN -eq 0 && "${GITHUB_ACTIONS:-}" != "true" ]]; then
     if [[ -n "$(git status --porcelain -- '*.cs' '*.csproj')" ]]; then
         echo "Uncommitted mod changes; commit and push first." >&2; exit 1
     fi
@@ -33,7 +37,8 @@ VERSIONS=""
 for proj in */*.csproj; do
     mod="$(basename "$proj" .csproj)"
     echo "Building $mod..."
-    dotnet build "$proj" -c Release -nologo -v quiet >/dev/null
+    # shellcheck disable=SC2086 # BUILD_PROPS is a list of -p: arguments
+    dotnet build "$proj" -c Release -nologo -v quiet -p:SkipDeploy=true ${BUILD_PROPS:-} >/dev/null
     dll="$(dirname "$proj")/bin/Release/$mod.dll"
     [[ -f "$dll" ]] || { echo "Missing $dll after build" >&2; exit 1; }
     mkdir -p "$STAGE/mods/$mod"
@@ -61,7 +66,8 @@ PREV="$(gh release view -R "$REPO" --json tagName -q .tagName 2>/dev/null || tru
     echo "| Mod | Version |"
     echo "|---|---|"
     while read -r m v; do [[ -n "$m" ]] && echo "| $m | $v |"; done <<< "$VERSIONS"
-    if [[ -n "$PREV" ]]; then
+    git fetch -q --tags origin 2>/dev/null || true
+    if [[ -n "$PREV" ]] && git rev-parse -q --verify "$PREV^{commit}" >/dev/null; then
         echo
         echo "### Changes since $PREV"
         git log --format='- %s' "$PREV..HEAD" -- '*/*.cs' '*/*.csproj'
