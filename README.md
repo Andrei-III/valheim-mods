@@ -325,6 +325,35 @@ Only Steam connections are sped up. A server started with `-crossplay` uses a di
 
 </details>
 
+<details>
+<summary><b>HandyHammer</b>: the hammer always starts in repair mode, and E works with it in hand.</summary>
+
+<br>
+
+In vanilla Valheim, the hammer remembers the last piece you built and selects it again the next time you take it out. To repair something in a hurry, for example a portal under attack, you first have to open the build menu and find the repair tool. Also, while the hammer is out, E does nothing: you can't open a door, use a portal or open a chest without putting the hammer away first.
+
+HandyHammer changes both:
+- **Starts in repair mode:** every time you equip or unsheathe the hammer, the repair tool is selected. Pick a piece from the menu as usual to build.
+- **E works:** with the hammer out, E uses whatever you look at, the same as with any other item in hand.
+- **Also with Atze's Build Camera:** while that mod's camera is on, E uses doors, chests, portals, stations and so on within 10 m of the camera. Pickables and dropped items are still handled by Build Camera itself. A chest opened this way stays open even if your character is more than 4 m away; once you turn the camera off, the vanilla rule applies again.
+  While a chest, your inventory, the chat or the map is open, the camera stays still, so moving the mouse or holding Ctrl (for example Ctrl + click to move a stack) doesn't move it.
+
+#### Installation
+
+Put `HandyHammer.dll` in `BepInEx/plugins/HandyHammer/`. Only needed by the players who want it; not needed on the server.
+
+#### Configuration
+
+`BepInEx/config/andrei.valheim.handyhammer.cfg`:
+
+| Setting | Default | Description |
+|---|---|---|
+| `RepairOnEquip` | `true` | Select the repair tool every time the hammer is equipped. |
+| `InteractInBuildMode` | `true` | Let E use doors, portals, chests and so on while the hammer is out, also with Atze's Build Camera on. |
+| `BuildCameraInteractDistance` | `10` (2 to 50) | With Atze's Build Camera on, how far from the camera E reaches, in meters. |
+
+</details>
+
 ---
 
 ## Requirements
