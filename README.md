@@ -2,6 +2,10 @@
 
 BepInEx mods for Valheim. Click a mod to expand its details.
 
+**Install or update all of them on Windows:** download [UpdateValheimMods.bat](https://github.com/Andrei-III/valheim-mods/releases/latest/download/UpdateValheimMods.bat) once, and double-click it whenever there's a new [release](https://github.com/Andrei-III/valheim-mods/releases). It finds Valheim through Steam (or asks once for your `BepInEx\plugins` folder), downloads the latest mods and puts each one in `BepInEx\plugins\<Mod>\`, removing old copies installed elsewhere. Close Valheim first. BepInEx and [Jötunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/) must already be installed. The dedicated server still needs its mods copied by hand.
+
+Maintainer: `./release.sh` builds every mod and publishes a release from what's pushed on `main` (`--dry-run` to preview).
+
 <details>
 <summary><b>HarpoonReel</b>: hold a key to reel a harpooned creature all the way in to you.</summary>
 
